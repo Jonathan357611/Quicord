@@ -1,0 +1,7 @@
+{
+    "authorization": "YOUR_TOKEN_HERE",
+    "settings": {
+        "last_messages_to_show": 3
+    },
+    "nicknames": {}
+}

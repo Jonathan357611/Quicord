@@ -1,0 +1,291 @@
+#!/usr/bin/env python
+import sys
+import json
+import time
+import os
+import requests
+from datetime import datetime, timedelta, timezone
+from colorama import init, Fore, Back
+
+DATA = f"/home/{os.getlogin()}/.config/quicord/.data.json"
+
+init(autoreset=True)
+
+CHAT_COLORS = [Fore.MAGENTA, Fore.YELLOW, Fore.BLUE, Fore.RED, Fore.GREEN, Fore.CYAN]
+
+
+class Discord:
+    def __init__(self):
+        self.data = {}
+        self.updateData()
+        self.token = self.data["authorization"]
+
+    def updateData(self):
+        with open(DATA, "r") as f:
+            self.data = json.loads(f.read())
+
+    def nicknameToID(self, nickname):
+        try:
+            return self.data["nicknames"][nickname]["id"]
+        except:
+            return False
+
+    def sendMessage(self, content, id):
+        response = requests.post(
+            f"https://discord.com/api/v9/channels/{id}/messages",
+            data={"content": content},
+            headers={"authorization": self.token},
+        )
+        if response.status_code != 200:
+            return False
+        return True
+
+    def getMessages(self, id, limit=30):
+        response = requests.get(
+            f"https://discord.com/api/v9/channels/{id}/messages?limit={limit}",
+            data={},
+            headers={"authorization": self.token},
+        )
+        if response.status_code != 200:
+            return False
+        return json.loads(response.content)
+
+    def setOnlineStatus(self, status="online"):
+        allowed = ["dnd", "online", "idle", "invisible"]
+        if status in allowed:
+            response = requests.patch(
+                f"https://discord.com/api/v9/users/@me/settings",
+                json={"status": status},
+                headers={
+                    "authorization": self.token,
+                    "Content-Type": "application/json",
+                },
+            )
+            if response.status_code == 200:
+                return True
+        return False
+
+
+discord = Discord()
+
+
+def displayChat(userid, lenght=discord.data["settings"]["last_messages_to_show"]):
+    curr_color_index = 0
+    temp_color_dir = {}
+    messages = discord.getMessages(userid, limit=lenght)
+    if messages == False:
+        print(f"{Fore.RED}Invalid ID!")
+        exit(1)
+    for message in messages[::-1]:
+        usertag = message["author"]["username"] + message["author"]["discriminator"]
+        if usertag not in temp_color_dir.keys():
+            if curr_color_index == len(temp_color_dir.keys()):
+                curr_color_index -= 1
+            else:
+                curr_color_index += 1
+            temp_color_dir[usertag] = curr_color_index
+        usercolor = CHAT_COLORS[temp_color_dir[usertag]]
+        print(
+            f"{usercolor}@{message['author']['username']}#{message['author']['discriminator']}:",
+            end="",
+        )
+        if message["content"] != "":
+            print(f"{usercolor} {message['content']}", end="")
+        if len(message["attachments"]) != 0:
+            if len(message["attachments"]) <= 1:
+                print(
+                    f"{usercolor} <File: {message['attachments'][0]['filename']}>",
+                    end="",
+                )
+            else:
+                print(f"{usercolor} <Files: ", end="")
+                for i, file in enumerate(message["attachments"]):
+                    print(f"{usercolor}{message['attachments'][i]['filename']}", end="")
+                    if i + 1 != len(message["attachments"]):
+                        print(f"{usercolor}, ", end="")
+                print(f"{usercolor}>", end="")
+        print()
+
+
+def live(userid, timeout=2.5, show_img=False):
+    read_messages = []
+    CURR_COLOR_INDEX = -1
+
+    while True:
+        messages = discord.getMessages(userid, limit=15)
+        for message in messages[::-1]:
+            if CURR_COLOR_INDEX == len(CHAT_COLORS) - 1:
+                CURR_COLOR_INDEX = -1
+            CURR_COLOR_INDEX += 1
+            CURR_COLOR = CHAT_COLORS[CURR_COLOR_INDEX]
+
+            if message["id"] not in read_messages:
+                new_format_timestamp = (
+                    message["timestamp"][: len(message["timestamp"]) - 13] + ".000Z"
+                )
+                utc_dt = datetime.strptime(
+                    new_format_timestamp,
+                    "%Y-%m-%dT%H:%M:%S.%fZ",
+                )
+                timestamp = (utc_dt - datetime(1970, 1, 1)).total_seconds()
+                when = str(
+                    timedelta(
+                        seconds=datetime.now(timezone.utc).timestamp() - timestamp
+                    )
+                )[:-7]
+                if "-1 day" in when:
+                    when = "[just now]"
+                else:
+                    when = f"[{when} ago]"
+                print(
+                    f"{CURR_COLOR}{when} @{message['author']['username']}#{message['author']['discriminator']}: {message['content']}\n\n---\n"
+                )
+
+                read_messages.append(message["id"])
+
+        time.sleep(timeout)
+
+
+def sendMessage(userid, message):
+    discord.sendMessage(message, userid)
+
+
+def readData():
+    with open(DATA, "r") as f:
+        return json.loads(f.read())
+
+
+def writeData(data: dir):
+    with open(DATA, "w") as f:
+        return f.write(json.dumps(data, indent=4))
+
+
+def showHelp():
+    print(
+        f"""quicord -add <id> <nickname>                                 -    Adds a nickname
+quicord <nickname> -file <file> <message>                    -    Send message to user with file (File needs to be referenced BEFORE message!)
+quicord -token <token>                                       -    Set discord token
+quicord -list                                                -    List all your saved nicknames
+quicord -timed <nickname> <unixtime OR +seconds> <msg>       -    Send a timed message
+quicord -status <status>                                     -    Set your status [Online|Idle|DND|Invisible]
+quicord <nickname>                                           -    Shows live chat of your nickname"""
+    )
+
+
+if __name__ == "__main__":
+    arguments = sys.argv
+    json_data = readData()
+    if len(arguments) <= 1:
+        showHelp()
+    else:
+        if arguments[1] == "-add":
+            if len(arguments) <= 3:
+                print(f"{Fore.RED}Please pass an ID for a channel/user + nickname!")
+                exit(1)
+            else:
+                channel_id = arguments[2]
+                nickname = arguments[3]
+                if nickname in json_data["nicknames"].keys():
+                    yn = input(f'"{nickname}" already registered, overwrite? [Y/n]: ')
+                    if yn.lower() == "n":
+                        print(f"Okay, nothing changed!")
+                        exit(1)
+                json_data["nicknames"][nickname] = {"id": channel_id}
+                writeData(json_data)
+                print(
+                    f'{Fore.GREEN}"{nickname}" now corresponds to channel #{channel_id}!'
+                )
+
+        elif arguments[1] == "-timed":
+            if len(arguments) < 5:
+                print(f"{Fore.RED}Please pass all arguments!")
+                exit(1)
+            elif arguments[2] not in json_data["nicknames"].keys():
+                print(f"{Fore.RED}Channel not found!")
+                exit(1)
+
+            message = " ".join([x for x in arguments[4:]])
+            unixtime = arguments[3]
+            channel = arguments[2]
+            userid = discord.nicknameToID(channel)
+
+            print(message, unixtime, channel)
+            if not unixtime[0] == "+":
+                if not unixtime.isnumeric():
+                    print(f"{Fore.RED}Please provide valid unixtime!")
+                    exit(1)
+                unixtime = int(unixtime)
+                if unixtime < time.time():
+                    print(f"{Fore.RED}Time has to be in the future!")
+                    exit(1)
+
+                time_delta = unixtime - time.time()
+            else:
+                unixtime = unixtime[1:]
+                if not unixtime.isnumeric():
+                    print(f"{Fore.RED}Please provide valid unixtime!")
+                    exit(1)
+                time_delta = int(unixtime)
+            print(f"{Fore.GREEN} sending message in {time_delta} seconds!")
+
+            time.sleep(time_delta)
+
+            sendMessage(userid, message)
+            print(f"{Fore.GREEN}Sent message at {datetime.now()}!")
+
+        elif arguments[1] == "-list":
+            for nick in json_data["nicknames"].keys():
+                channel_id = json_data["nicknames"][nick]["id"]
+                print(f"{nick}: {channel_id}")
+
+        elif arguments[1] == "-token":
+            if len(arguments) <= 2:
+                print(f"{Fore.RED}Please pass a token!")
+                exit(1)
+            else:
+                json_data["authorization"] = arguments[2]
+                writeData(json_data)
+                print(f"{Fore.GREEN}Token written!")
+
+        elif arguments[1] == "-list":
+            if len(arguments) <= 2:
+                conv_lenght = 5
+            userid = discord.nicknameToID(arguments[2])
+            if userid == False:
+                print(f"{Fore.RED}User not found!")
+                exit(1)
+            if len(arguments) <= 4:
+                if not arguments[3].isdigit():
+                    print(f"{Fore.RED}Please pass a number!")
+                    exit(1)
+                else:
+                    conv_lenght = int(arguments[3])
+                displayChat(userid, lenght=conv_lenght)
+
+        elif arguments[1] == "-status":
+            status_list = ["online", "idle", "dnd", "invisible", "offline"]
+            if arguments[2].lower() not in status_list:
+                print(
+                    f'{Fore.RED}"{arguments[2]}" is not a valid status, valid ones: {Fore.RESET}{", ".join([x.capitalize() for x in status_list])}!'
+                )
+                exit(1)
+            if arguments[2].lower() == "offline":
+                status = "invisible"
+            else:
+                status = arguments[2].lower()
+            discord.setOnlineStatus(status)
+            print(f"{Fore.GREEN}You are now {status.capitalize()}")
+
+        elif (
+            len(arguments) == 2 and arguments[1] in json_data["nicknames"].keys()
+        ):  # Live chat
+            live(discord.nicknameToID(arguments[1]))
+        elif arguments[1] in json_data["nicknames"].keys():
+            userid = discord.nicknameToID(arguments[1])
+
+            sendMessage(userid, " ".join([x for x in arguments[2:]]))
+            displayChat(userid)
+            print(f"{Fore.GREEN}Message sent! {Fore.CYAN}^")
+
+        else:
+            print(f"{Fore.RED}User not found!")
