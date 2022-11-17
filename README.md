@@ -5,24 +5,7 @@ It is written in python3.
 
 # Usage
 
-## Initial usage
-after installing, you should run the installer
-which just moves some files and makes quicord available everywhere on your terminal.
-
-Installer: 
-```bash
-./installer.sh
-```
-Next, you'll need your discord token so that quicord can communicate with discord.
-[Get token](#get-token)
-Just run
-```bash
-quicord -token <TOKEN>
-```
-And... that all you gotta do!
-
-## Basic usage
-### Flags:
+## Flags:
 Use ```quicord \<command>```
 
 
@@ -41,8 +24,25 @@ Use ```quicord \<command>```
 
 # Installation
 
-# Get Token
-## Firefox
+To download this repository run ```git clone https://github.com/Jonathan357611/Quicord/blob/main/README.md```
+followed by ```cd Quicord``` to get there.
+
+Now you should run the installer which just moves some files and makes quicord available everywhere on your terminal.
+
+Installer: 
+```bash
+./installer.sh
+```
+Next, you'll need your discord token so that quicord can communicate with discord.
+[Get token](#get-token)
+Just run
+```bash
+quicord -token <TOKEN>
+```
+And... that all you gotta do!
+
+## Get Token
+### Firefox
 
 1) Open Developer-Console with F12
 2) Go the storage-tab
