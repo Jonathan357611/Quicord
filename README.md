@@ -6,7 +6,7 @@ It is written in python3.
 # Usage
 
 ## Flags:
-Use ```quicord \<command>```
+Use ```quicord <command>```
 
 
 - **-add \<channel_id> \<name>** <br>^ Add a channel (Right click on one in your real discord and click 'Copy ID', you might have to enter dev-mode)
