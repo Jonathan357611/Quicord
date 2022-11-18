@@ -17,7 +17,7 @@ Use ```quicord <command>```
 
 - **-timed \<name> [\<unixtime> OR +\<seconds>] \<message>** <br>^ Send message to a user at a specific time.
 
-- **-status \<status>** <br>^ Set your status [Online | Idle | DND | Invisible/Offline]
+- **-status \<status> \<msg>** <br>^ Set your status [Online | Idle | DND | Invisible/Offline] + Set a custom status text
 
 - **\<name>** <br>^ Just a name will result in a live chat of it.
 

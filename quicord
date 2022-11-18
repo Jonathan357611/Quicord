@@ -50,12 +50,13 @@ class Discord:
             return False
         return json.loads(response.content)
 
-    def setOnlineStatus(self, status="online"):
+    def setOnlineStatus(self, status="online", message=""):
         allowed = ["dnd", "online", "idle", "invisible"]
         if status in allowed:
+            request_json = {"status": status, "custom_status": {"text": message}}
             response = requests.patch(
                 f"https://discord.com/api/v9/users/@me/settings",
-                json={"status": status},
+                json=request_json,
                 headers={
                     "authorization": self.token,
                     "Content-Type": "application/json",
@@ -167,7 +168,7 @@ quicord <nickname> -file <file> <message>                    -    Send message t
 quicord -token <token>                                       -    Set discord token
 quicord -list                                                -    List all your saved nicknames
 quicord -timed <nickname> <unixtime OR +seconds> <msg>       -    Send a timed message
-quicord -status <status>                                     -    Set your status [Online|Idle|DND|Invisible]
+quicord -status <status> <msg>                               -    Set your status [Online|Idle|DND|Invisible]
 quicord <nickname>                                           -    Shows live chat of your nickname"""
     )
 
@@ -273,8 +274,15 @@ if __name__ == "__main__":
                 status = "invisible"
             else:
                 status = arguments[2].lower()
-            discord.setOnlineStatus(status)
-            print(f"{Fore.GREEN}You are now {status.capitalize()}")
+
+            message = ""
+            if len(arguments) == 4:
+                message = arguments[3]
+
+            discord.setOnlineStatus(status, message)
+            print(f"{Fore.GREEN}You are now {status.capitalize()}", end="")
+            if message:
+                print(f"{Fore.GREEN} and text is \"{message}\"")
 
         elif (
             len(arguments) == 2 and arguments[1] in json_data["nicknames"].keys()
