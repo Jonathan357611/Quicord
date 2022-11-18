@@ -24,7 +24,7 @@ Use ```quicord <command>```
 
 # Installation
 
-To download this repository run ```git clone https://github.com/Jonathan357611/Quicord/blob/main/README.md```
+To download this repository run ```git clone https://github.com/Jonathan357611/Quicord.git```
 followed by ```cd Quicord``` to get there.
 
 Now you should run the installer which just moves some files and makes quicord available everywhere on your terminal.
